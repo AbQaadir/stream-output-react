@@ -9,29 +9,30 @@ const StreamingOutput = () => {
   const [accessToken, setAccessToken] = useState('');
   const outputRef = useRef(null);
 
-  // Fetch OAuth2 token on component mount
+  // Fetch OAuth2 token on mount
   useEffect(() => {
     const getToken = async () => {
       try {
-        const consumerKey = window?.configs?.consumerKey || '';
-        const consumerSecret = window?.configs?.consumerSecret || '';
-        const tokenUrl = window?.configs?.tokenUrl || '';
+        const consumerKey = window?.configs?.consumerKey;
+        const consumerSecret = window?.configs?.consumerSecret;
+        const tokenUrl = window?.configs?.tokenUrl;
 
-        if (consumerKey && consumerSecret && tokenUrl) {
-          const getClientCredentials = clientCredentials(
-            axios.create(),
-            tokenUrl,
-            consumerKey,
-            consumerSecret
-          );
-          const auth = await getClientCredentials();
-          setAccessToken(auth.access_token);
-          console.log('Access Token:', auth.access_token); // Debug
-        } else {
-          console.warn('OAuth2 credentials not provided, skipping token fetch');
+        if (!consumerKey || !consumerSecret || !tokenUrl) {
+          console.warn('Missing OAuth2 credentials, running without auth');
+          return;
         }
+
+        const getClientCredentials = clientCredentials(
+          axios.create(),
+          tokenUrl,
+          consumerKey,
+          consumerSecret
+        );
+        const auth = await getClientCredentials();
+        setAccessToken(auth.access_token);
+        console.log('Access Token:', auth.access_token); // Debug
       } catch (error) {
-        console.error('Failed to fetch token:', error);
+        console.error('Token fetch error:', error);
         setOutput(`Error fetching token: ${error.message}`);
       }
     };
@@ -44,7 +45,8 @@ const StreamingOutput = () => {
 
     try {
       const apiUrl = window?.configs?.apiUrl || window?.configs?.serviceUrl || 'http://localhost:8080';
-      console.log('Requesting URL:', `${apiUrl}/stream`); // Debug
+      const fullUrl = `${apiUrl}/stream`;
+      console.log('Requesting URL:', fullUrl); // Debug
 
       const headers = {
         'Accept': 'application/json',
@@ -54,7 +56,7 @@ const StreamingOutput = () => {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
 
-      const response = await fetch(`${apiUrl}/stream`, {
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({
