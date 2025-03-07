@@ -1,25 +1,62 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { marked } from 'marked';
+import axios from 'axios';
+import { clientCredentials } from 'axios-oauth-client';
 
 const StreamingOutput = () => {
   const [output, setOutput] = useState('');
   const [topic, setTopic] = useState('');
+  const [accessToken, setAccessToken] = useState('');
   const outputRef = useRef(null);
+
+  // Fetch OAuth2 token on component mount
+  useEffect(() => {
+    const getToken = async () => {
+      try {
+        const consumerKey = window?.configs?.consumerKey || '';
+        const consumerSecret = window?.configs?.consumerSecret || '';
+        const tokenUrl = window?.configs?.tokenUrl || '';
+
+        if (consumerKey && consumerSecret && tokenUrl) {
+          const getClientCredentials = clientCredentials(
+            axios.create(),
+            tokenUrl,
+            consumerKey,
+            consumerSecret
+          );
+          const auth = await getClientCredentials();
+          setAccessToken(auth.access_token);
+          console.log('Access Token:', auth.access_token); // Debug
+        } else {
+          console.warn('OAuth2 credentials not provided, skipping token fetch');
+        }
+      } catch (error) {
+        console.error('Failed to fetch token:', error);
+        setOutput(`Error fetching token: ${error.message}`);
+      }
+    };
+    getToken();
+  }, []);
 
   const startStreaming = async () => {
     setOutput('Connecting...');
     let content = '';
 
     try {
-      const apiUrl = window?.configs?.serviceUrl || 'http://localhost:8080';
+      const apiUrl = window?.configs?.apiUrl || window?.configs?.serviceUrl || 'http://localhost:8080';
       console.log('Requesting URL:', `${apiUrl}/stream`); // Debug
+
+      const headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
 
       const response = await fetch(`${apiUrl}/stream`, {
         method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           topic: topic.trim() || 'simple post endpoint',
         }),
